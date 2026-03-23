@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Location } from "@/data/locations";
-import { Copy, Check, Instagram, MapPin, Clock, Globe, Heart } from "lucide-react";
+import { Copy, Check, Instagram, MapPin, Clock, Globe, Heart, ChevronDown } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { useAuth } from "@/context/AuthContext";
 import { twMerge } from "tailwind-merge";
@@ -11,7 +11,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function SpaceCard({ space }: { space: Location }) {
+export function SpaceCard({ space, distance }: { space: Location, distance?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const { currentUser, toggleBookmark } = useAuth();
@@ -47,9 +47,6 @@ export function SpaceCard({ space }: { space: Location }) {
       <div className="flex justify-between items-start gap-3">
         <div className="flex flex-col gap-2.5 flex-1 relative group/title">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex w-fit px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold tracking-widest shadow-sm">
-              {space.category}
-            </div>
             {space.exhibitionStatus && (
               <div 
                 className={cn(
@@ -126,26 +123,38 @@ export function SpaceCard({ space }: { space: Location }) {
                 <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-gray-100 text-indigo-500">
                   <MapPin className="w-[18px] h-[18px]" />
                 </div>
-                <div className="flex items-center flex-wrap gap-2.5 mt-1">
-                  <span className="font-semibold text-gray-800 text-[15px]">{space.address}</span>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={handleCopy}
-                      aria-label="주소 복사"
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[13px] font-bold bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg shadow-sm transition-all active:scale-95"
-                    >
-                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-gray-400" />}
-                      {copied ? "복사됨" : "복사"}
-                    </button>
-                    <a 
-                      href={mapLink} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] font-bold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-lg transition-all active:scale-95"
-                    >
-                      지도 보기 <span aria-hidden="true">↗</span>
-                    </a>
+                <div className="flex flex-col gap-1 mt-1">
+                  <div className="flex items-center flex-wrap gap-2.5">
+                    <span className="font-semibold text-gray-800 text-[15px]">{space.address}</span>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={handleCopy}
+                        aria-label="주소 복사"
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[13px] font-bold bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg shadow-sm transition-all active:scale-95"
+                      >
+                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-gray-400" />}
+                        {copied ? "복사됨" : "복사"}
+                      </button>
+                      <a 
+                        href={mapLink} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] font-bold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-lg transition-all active:scale-95"
+                      >
+                        지도 보기 <span aria-hidden="true">↗</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">
+                      {space.category}
+                    </span>
+                    {distance && (
+                      <span className="text-xs font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md">
+                        {distance}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -194,6 +203,14 @@ export function SpaceCard({ space }: { space: Location }) {
             )}
           </div>
         </div>
+      </div>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-30 group-hover:opacity-60 transition-opacity">
+        <ChevronDown 
+          className={cn(
+            "w-5 h-5 text-gray-400 transition-transform duration-300",
+            isOpen ? "rotate-180" : "rotate-0"
+          )} 
+        />
       </div>
     </div>
   );

@@ -13,8 +13,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "시디과 여기어때?",
-  description: "시디과가 방문하기 좋은 문화예술공간 추천집",
+  title: "시디과 여기어때",
+  description: "시디과 학생이라면 방문하기 좋은 문화예술공간 추천집",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

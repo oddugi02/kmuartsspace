@@ -6,10 +6,18 @@ import { SpaceCard } from "@/components/SpaceCard";
 import { BottomNav } from "@/components/BottomNav";
 import { isOpenNow } from "@/utils/time";
 import { useAuth } from "@/context/AuthContext";
+import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from "clsx";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 
 export default function Home() {
   const [filterOpen, setFilterOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<"name" | "distance" | "category">("name");
+  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [activeDesignTag, setActiveDesignTag] = useState<string>("전체");
   const [isTagLoading, setIsTagLoading] = useState(false);
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
@@ -39,6 +47,41 @@ export default function Home() {
     }
   }, [currentUser]);
 
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      alert("이 브라우저에서는 위치 정보를 지원하지 않습니다.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        alert("위치 정보를 가져올 수 없습니다. 권한 설정을 확인해주세요.");
+        setSortBy("name");
+      }
+    );
+  };
+
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
   const displayLocations = useMemo(() => {
     let result = locations;
 
@@ -52,18 +95,37 @@ export default function Home() {
       );
     }
 
+
     if (activeDesignTag !== "전체") {
       result = result.filter((loc) => loc.designTags?.includes(activeDesignTag));
-
-      result = [...result].sort((a, b) => {
-        const aIsPrimary = a.designTags?.[0] === activeDesignTag ? -1 : 1;
-        const bIsPrimary = b.designTags?.[0] === activeDesignTag ? -1 : 1;
-        return aIsPrimary - bIsPrimary;
-      });
     }
 
+    // Apply Sorting
+    result = [...result].sort((a, b) => {
+      // Priority 1: Exhibition Preparing at bottom
+      const aIsPreparing = a.exhibitionStatus === "전시 준비 중" ? 1 : 0;
+      const bIsPreparing = b.exhibitionStatus === "전시 준비 중" ? 1 : 0;
+      if (aIsPreparing !== bIsPreparing) return aIsPreparing - bIsPreparing;
+
+      // Priority 2: Selected Sort
+      if (sortBy === "distance" && userLocation) {
+        if (!a.lat || !a.lng) return 1;
+        if (!b.lat || !b.lng) return -1;
+        const distA = getDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
+        const distB = getDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
+        return distA - distB;
+      }
+
+      if (sortBy === "category") {
+        return a.category.localeCompare(b.category, 'ko');
+      }
+
+      // Default: name (ㄱㄴㄷ)
+      return a.name.localeCompare(b.name, 'ko');
+    });
+
     return result;
-  }, [filterOpen, currentTime, activeDesignTag, showBookmarksOnly, currentUser?.bookmarks]);
+  }, [filterOpen, currentTime, activeDesignTag, showBookmarksOnly, currentUser?.bookmarks, sortBy, userLocation]);
 
   if (!currentTime) return null;
 
@@ -74,15 +136,15 @@ export default function Home() {
         <div className="max-w-[1240px] mx-auto px-6 flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="flex flex-col gap-1">
             <h1 className="text-3xl md:text-5xl font-black tracking-tight text-gray-900 drop-shadow-sm">
-              시디과 여기어때?
+              시디과 여기어때
             </h1>
             <div className="flex flex-col gap-2.5">
               <p className="text-sm md:text-base font-bold text-gray-500 tracking-wide mt-1">
-                시디과가 방문하기 좋은 문화예술공간 추천집
+                시디과 학생이라면 방문하기 좋은 문화예술공간 추천집
               </p>
               <div className="inline-flex items-center justify-center px-2.5 py-1 bg-slate-100/80 rounded-md w-fit border border-slate-200">
                 <span className="text-[11px] font-bold text-slate-500 tracking-tight">
-                  {!currentUser ? "💡 로그인하면 특별한 장소들을 스크랩할 수 있어요" : "💡 추천 장소는 정기적으로 업데이트됩니다"}
+                  {!currentUser ? "💡 로그인하면 특별한 장소들을 스크랩할 수 있어요" : "💡 추천 공간은 정기적으로 업데이트됩니다"}
                 </span>
               </div>
             </div>
@@ -156,6 +218,7 @@ export default function Home() {
                 />
               </div>
             </div>
+
           </div>
         </div>
 
@@ -177,7 +240,7 @@ export default function Home() {
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
             <div className="flex flex-col gap-3 mb-8 md:mb-12 ml-2">
-              <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5 shrink-0">
                   <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-gray-900 bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-2xl inline-block hover:-translate-y-0.5 transition-transform cursor-pointer">
                     추천 공간 리스트
@@ -187,34 +250,49 @@ export default function Home() {
                   </span>
                 </div>
 
-                {/* Theme Tags */}
-                <div className="flex flex-wrap items-center gap-2">
-                  {allDesignTags.map(tag => (
-                    <button
-                      key={tag}
+                {/* Sorting Dropdown */}
+                <div className="flex flex-col gap-2 items-end">
+                  <div className="flex items-center gap-3 bg-white px-2 py-2 rounded-2xl border border-gray-200 shadow-sm">
+                    <button 
+                      onClick={() => setSortBy("name")}
+                      className={cn(
+                        "px-4 py-1.5 rounded-xl text-sm font-bold transition-all",
+                        sortBy === "name" ? "bg-gray-900 text-white shadow-md scale-105" : "text-gray-500 hover:text-gray-900"
+                      )}
+                    >
+                      기본순
+                    </button>
+                    <button 
                       onClick={() => {
-                        if (tag !== activeDesignTag) {
-                          setIsTagLoading(true);
-                          setActiveDesignTag(tag);
-                          setTimeout(() => setIsTagLoading(false), 600);
+                        if (sortBy !== "distance") {
+                          setSortBy("distance");
+                          requestLocation();
                         }
                       }}
-                      className={`px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all shadow-sm border active:scale-95 ${activeDesignTag === tag
-                          ? "bg-blue-600 text-white border-blue-700 shadow-[0_4px_14px_rgba(37,99,235,0.3)]"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50"
-                        }`}
+                      className={cn(
+                        "px-4 py-1.5 rounded-xl text-sm font-bold transition-all",
+                        sortBy === "distance" ? "bg-blue-600 text-white shadow-md scale-105" : "text-gray-500 hover:text-blue-600"
+                      )}
                     >
-                      {tag === "전체" ? "모든 테마" : tag}
+                      가까운순
                     </button>
-                  ))}
+                  </div>
+                  {sortBy === "distance" && (
+                    <p className="text-[10px] md:text-xs font-bold text-blue-500/80 pr-2">
+                      💡 브라우저 Geolocation API를 연동하여 현재 위치에서의 거리를 km 단위로 표시합니다
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-8 items-start">
-              {displayLocations.map((space) => (
-                <SpaceCard key={space.id} space={space} />
-              ))}
+              {displayLocations.map((space) => {
+                const distanceText = userLocation && space.lat && space.lng 
+                  ? `${getDistance(userLocation.lat, userLocation.lng, space.lat, space.lng).toFixed(1)}km` 
+                  : undefined;
+                return <SpaceCard key={space.id} space={space} distance={distanceText} />;
+              })}
             </div>
           </div>
         )}
