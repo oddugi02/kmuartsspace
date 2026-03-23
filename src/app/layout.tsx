@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -12,8 +13,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Seoul Arts Space Archive",
-  description: "국민대 시각디자인 학생들을 위한 서울 문화예술 공간 큐레이션",
+  title: "시디과 여기어때?",
+  description: "시디과가 방문하기 좋은 문화예술공간 추천집",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -30,7 +31,9 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={`${inter.variable} font-sans antialiased bg-background text-foreground selection:bg-black selection:text-white leading-[1.6] tracking-tight pb-20 md:pb-0`}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

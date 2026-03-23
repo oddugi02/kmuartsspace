@@ -1,6 +1,6 @@
 export function isOpenNow(hoursString: string, currentTime = new Date()): boolean {
   if (!hoursString) return false;
-  if (hoursString.includes("상이")) return true; // Fallback for irregular schedules
+  if (hoursString.includes("상이") || hoursString.includes("다름") || hoursString.includes("미정")) return false;
 
   const dayOfWeek = currentTime.getDay(); // 0: Sun, 1: Mon, ..., 6: Sat
   const days = ["일", "월", "화", "수", "목", "금", "토"];
@@ -81,6 +81,6 @@ export function isOpenNow(hoursString: string, currentTime = new Date()): boolea
     return isTimeValid;
   }
 
-  // If no time string matched but didn't trip "closed", assume it's open
-  return true;
+  // If no time string matched, we cannot guarantee it's open
+  return false;
 }

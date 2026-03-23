@@ -5,46 +5,17 @@ import { locations } from "@/data/locations";
 import { SpaceCard } from "@/components/SpaceCard";
 import { BottomNav } from "@/components/BottomNav";
 import { isOpenNow } from "@/utils/time";
+import { useAuth } from "@/context/AuthContext";
 
-type TimeRange = "전체" | "30분 내외" | "30분~1시간" | "1시간~1시간 30분";
-
-const timeTabs: TimeRange[] = [
-  "전체",
-  "30분 내외",
-  "30분~1시간",
-  "1시간~1시간 30분",
-];
-
-function getTimeCategory(timeStr: string): TimeRange {
-  const match = timeStr.match(/(\d+)~(\d+)/);
-  let average = 0;
-
-  if (match) {
-    average = (parseInt(match[1], 10) + parseInt(match[2], 10)) / 2;
-  } else {
-    average = parseInt(timeStr, 10);
-  }
-
-  if (isNaN(average)) return "전체";
-
-  if (average <= 30) return "30분 내외";
-  if (average <= 60) return "30분~1시간";
-  return "1시간~1시간 30분";
-}
-
-const timeTags: Record<TimeRange, string[]> = {
-  "전체": [],
-  "30분 내외": ["2-3시간 공강", "가벼운 외출"],
-  "30분~1시간": ["오전/오후 공강", "여유로운 날"],
-  "1시간~1시간 30분": ["1교시만 있는 날", "공강데이", "주말"]
-};
 
 export default function Home() {
   const [filterOpen, setFilterOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<TimeRange>("전체");
   const [activeDesignTag, setActiveDesignTag] = useState<string>("전체");
   const [isTagLoading, setIsTagLoading] = useState(false);
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
+
+  const { currentUser, openAuthModal, logout } = useAuth();
 
   const allDesignTags = useMemo(() => {
     const tags = new Set<string>();
@@ -62,8 +33,18 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!currentUser) {
+      setShowBookmarksOnly(false);
+    }
+  }, [currentUser]);
+
   const displayLocations = useMemo(() => {
     let result = locations;
+
+    if (showBookmarksOnly && currentUser) {
+      result = result.filter(loc => currentUser.bookmarks.includes(loc.id));
+    }
 
     if (filterOpen && currentTime) {
       result = result.filter(
@@ -71,22 +52,18 @@ export default function Home() {
       );
     }
 
-    if (activeTab !== "전체") {
-      result = result.filter((loc) => getTimeCategory(loc.timeFromKMU) === activeTab);
-    }
-
     if (activeDesignTag !== "전체") {
       result = result.filter((loc) => loc.designTags?.includes(activeDesignTag));
+
+      result = [...result].sort((a, b) => {
+        const aIsPrimary = a.designTags?.[0] === activeDesignTag ? -1 : 1;
+        const bIsPrimary = b.designTags?.[0] === activeDesignTag ? -1 : 1;
+        return aIsPrimary - bIsPrimary;
+      });
     }
 
-    return result.sort((a, b) => {
-      const getAvg = (str: string) => {
-        const m = str.match(/(\d+)~(\d+)/);
-        return m ? (parseInt(m[1]) + parseInt(m[2])) / 2 : (parseInt(str) || 0);
-      };
-      return getAvg(a.timeFromKMU) - getAvg(b.timeFromKMU);
-    });
-  }, [filterOpen, currentTime, activeTab, activeDesignTag]);
+    return result;
+  }, [filterOpen, currentTime, activeDesignTag, showBookmarksOnly, currentUser?.bookmarks]);
 
   if (!currentTime) return null;
 
@@ -97,42 +74,68 @@ export default function Home() {
         <div className="max-w-[1240px] mx-auto px-6 flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="flex flex-col gap-1">
             <h1 className="text-3xl md:text-5xl font-black tracking-tight text-gray-900 drop-shadow-sm">
-              Seoul Arts Space
+              시디과 여기어때?
             </h1>
-            <p className="text-sm md:text-base font-bold text-gray-500 tracking-wide mt-1">
-              국민대 시각디자인 학생들을 위한 큐레이션 스페이스
-            </p>
+            <div className="flex flex-col gap-2.5">
+              <p className="text-sm md:text-base font-bold text-gray-500 tracking-wide mt-1">
+                시디과가 방문하기 좋은 문화예술공간 추천집
+              </p>
+              <div className="inline-flex items-center justify-center px-2.5 py-1 bg-slate-100/80 rounded-md w-fit border border-slate-200">
+                <span className="text-[11px] font-bold text-slate-500 tracking-tight">
+                  {!currentUser ? "💡 로그인하면 특별한 장소들을 스크랩할 수 있어요" : "💡 추천 장소는 정기적으로 업데이트됩니다"}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0 mt-4 md:mt-0">
-            {/* Design Tag Filter */}
-            <div className="relative">
-              <select
-                value={activeDesignTag}
-                onChange={(e) => {
-                  const newTag = e.target.value;
-                  if (newTag !== activeDesignTag) {
-                    setIsTagLoading(true);
-                    setActiveDesignTag(newTag);
-                    setTimeout(() => {
-                      setIsTagLoading(false);
-                    }, 600); // 0.6s fake loading delay
-                  }
-                }}
-                className="appearance-none bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-2xl px-4 py-2.5 pr-10 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all shadow-[0_2px_10px_rgb(0,0,0,0.02)] cursor-pointer"
-              >
-                {allDesignTags.map(tag => (
-                  <option key={tag} value={tag}>
-                    {tag === "전체" ? "모든 테마" : tag}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                </svg>
+
+            {currentUser ? (
+              <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100">
+                <span className="text-sm font-bold text-gray-800">
+                  <span className="text-blue-600">{currentUser.name}</span>님 환영합니다✨
+                </span>
+                <div className="w-px h-3.5 bg-gray-200" />
+                <button
+                  onClick={() => {
+                    if (window.confirm("정말 로그아웃 하시겠습니까?")) {
+                      logout();
+                    }
+                  }}
+                  className="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  로그아웃
+                </button>
               </div>
-            </div>
+            ) : (
+              <button
+                onClick={openAuthModal}
+                className="bg-gray-900 hover:bg-gray-800 text-white font-bold py-2.5 px-5 rounded-2xl shadow-md cursor-pointer transition-all active:scale-95 text-sm"
+              >
+                로그인 / 회원가입
+              </button>
+            )}
+            {currentUser && (
+              <div
+                onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
+                className="flex items-center gap-3 cursor-pointer group bg-white border border-gray-200 px-4 py-2.5 rounded-2xl hover:border-pink-300 hover:shadow-sm transition-all shadow-[0_2px_10px_rgb(0,0,0,0.02)] active:scale-95"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-gray-700 select-none group-hover:text-pink-600 transition-colors">
+                    내가 찜한 곳
+                  </span>
+                </div>
+                <div
+                  className={`relative w-[42px] h-[22px] rounded-full transition-colors duration-400 ease-out border overflow-hidden ${showBookmarksOnly ? "bg-pink-500 border-pink-600" : "bg-gray-200 border-gray-300"
+                    }`}
+                >
+                  <div
+                    className={`absolute top-[1.5px] left-[1.5px] bg-white w-4 h-4 rounded-full transition-transform duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-sm ${showBookmarksOnly ? "translate-x-[18px]" : "translate-x-0"
+                      }`}
+                  />
+                </div>
+              </div>
+            )}
 
             <div
               onClick={() => setFilterOpen(!filterOpen)}
@@ -156,23 +159,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Time Filter Tabs */}
-        <div className="max-w-[1240px] mx-auto px-6 pt-5 md:pt-6">
-          <div className="flex overflow-x-auto no-scrollbar gap-3 snap-x pb-2">
-            {timeTabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-none px-5 py-2.5 rounded-2xl text-[15px] font-bold transition-all snap-start ${activeTab === tab
-                  ? "bg-blue-600 border border-blue-700 text-white shadow-[0_4px_14px_rgba(37,99,235,0.3)] transform -translate-y-0.5"
-                  : "bg-white border border-gray-200 text-gray-500 hover:border-blue-300 hover:text-gray-800 hover:bg-blue-50/50"
-                  }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
       </header>
 
       {/* Grid Content */}
@@ -191,22 +177,37 @@ export default function Home() {
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
             <div className="flex flex-col gap-3 mb-8 md:mb-12 ml-2">
-              {timeTags[activeTab] && timeTags[activeTab].length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 pl-1 text-blue-500 font-bold text-sm tracking-tight opacity-90">
-                  {timeTags[activeTab].map(tag => (
-                    <span key={tag} className="px-2.5 py-1 bg-white border border-blue-100 rounded-lg shadow-sm">
-                      #{tag}
-                    </span>
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
+                <div className="flex items-center gap-3.5 shrink-0">
+                  <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-gray-900 bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-2xl inline-block hover:-translate-y-0.5 transition-transform cursor-pointer">
+                    추천 공간 리스트
+                  </h2>
+                  <span className="text-base font-bold text-blue-600 bg-white border border-blue-100 px-3 py-1 rounded-xl shadow-sm">
+                    {displayLocations.length}곳
+                  </span>
+                </div>
+
+                {/* Theme Tags */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {allDesignTags.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => {
+                        if (tag !== activeDesignTag) {
+                          setIsTagLoading(true);
+                          setActiveDesignTag(tag);
+                          setTimeout(() => setIsTagLoading(false), 600);
+                        }
+                      }}
+                      className={`px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all shadow-sm border active:scale-95 ${activeDesignTag === tag
+                          ? "bg-blue-600 text-white border-blue-700 shadow-[0_4px_14px_rgba(37,99,235,0.3)]"
+                          : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50"
+                        }`}
+                    >
+                      {tag === "전체" ? "모든 테마" : tag}
+                    </button>
                   ))}
                 </div>
-              )}
-              <div className="flex items-center gap-3.5">
-                <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-gray-900 bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-2xl inline-block hover:-translate-y-0.5 transition-transform cursor-pointer">
-                  {activeTab === "전체" ? "모두 보기" : activeTab}
-                </h2>
-                <span className="text-base font-bold text-blue-600 bg-white border border-blue-100 px-3 py-1 rounded-xl shadow-sm">
-                  {displayLocations.length}곳
-                </span>
               </div>
             </div>
 

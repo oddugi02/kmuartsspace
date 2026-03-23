@@ -1,7 +1,7 @@
 {
-  "name": "Seoul Arts Space Archive",
-  "short_name": "Arts Archive",
-  "description": "국민대 시각디자인 학생들을 위한 서울 문화예술 공간 큐레이션",
+  "name": "시디과 여기어때",
+  "short_name": "시디과 여기어때",
+  "description": "시각디자인과 학생들을 위한 문화예술 공간 큐레이팅",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

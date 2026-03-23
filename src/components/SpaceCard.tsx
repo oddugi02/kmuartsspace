@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Location } from "@/data/locations";
-import { Copy, Check, Instagram, MapPin, Clock, Globe } from "lucide-react";
+import { Copy, Check, Instagram, MapPin, Clock, Globe, Heart } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
+import { useAuth } from "@/context/AuthContext";
 import { twMerge } from "tailwind-merge";
 
 function cn(...inputs: ClassValue[]) {
@@ -13,6 +14,9 @@ function cn(...inputs: ClassValue[]) {
 export function SpaceCard({ space }: { space: Location }) {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const { currentUser, toggleBookmark } = useAuth();
+  
+  const isBookmarked = currentUser?.bookmarks.includes(space.id) || false;
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -32,6 +36,14 @@ export function SpaceCard({ space }: { space: Location }) {
       className="relative bg-white border border-gray-200 rounded-[1.5rem] p-6 hover:border-blue-300 hover:shadow-[0_8px_30px_rgba(37,99,235,0.08)] hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
       onClick={() => setIsOpen(!isOpen)}
     >
+      <button 
+        onClick={(e) => { e.stopPropagation(); toggleBookmark(space.id); }}
+        className="absolute top-5 right-5 z-20 p-2 lg:-mr-2 lg:-mt-2 rounded-full cursor-pointer transition-all hover:scale-110 active:scale-95 bg-white/50 hover:bg-white backdrop-blur-sm"
+        aria-label="북마크"
+      >
+        <Heart className={cn("w-6 h-6 transition-colors drop-shadow-sm", isBookmarked ? "fill-red-500 text-red-500" : "text-gray-300 hover:text-red-400")} />
+      </button>
+
       <div className="flex justify-between items-start gap-3">
         <div className="flex flex-col gap-2.5 flex-1 relative group/title">
           <div className="flex flex-wrap items-center gap-2">
@@ -91,10 +103,6 @@ export function SpaceCard({ space }: { space: Location }) {
         </div>
         
         <div className="flex flex-col items-end shrink-0 pt-1">
-          <div className="inline-flex flex-col items-center justify-center gap-0.5 min-w-[72px] px-3 py-2 bg-blue-50 rounded-xl border border-blue-100 shrink-0 transform transition-transform group-hover:scale-105 group-hover:bg-blue-100/50">
-            <span className="text-[10px] font-bold text-blue-500 tracking-wide text-center leading-tight">국민대 출발</span>
-            <span className="text-[15px] font-black text-blue-700 mt-0.5 tracking-tight">{space.timeFromKMU}</span>
-          </div>
         </div>
       </div>
 
